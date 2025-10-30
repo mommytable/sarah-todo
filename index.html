@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>할 일 리스트</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="app__header">
+      <h1>할 일</h1>
+      <form id="todo-form" autocomplete="off" class="todo-form">
+        <input id="todo-input" class="todo-form__input" type="text" placeholder="할 일을 입력하세요" aria-label="할 일 입력" />
+        <select id="todo-priority" class="todo-form__select" aria-label="우선순위">
+          <option value="high">높음</option>
+          <option value="medium" selected>중간</option>
+          <option value="low">낮음</option>
+        </select>
+        <button type="submit" class="btn btn--primary" aria-label="추가">추가</button>
+      </form>
+    </header>
+
+    <section class="todo-list-section">
+      <ul id="todo-list" class="todo-list" aria-live="polite"></ul>
+      <div class="empty-state" id="empty-state">할 일이 없습니다. 새 할 일을 추가해보세요.</div>
+    </section>
+  </main>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import { getDatabase, ref, push, update, remove, onValue, query, orderByChild, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBG3ekl8oiqFDCLYTDX0aaMUNwIutgb9mc",
+      authDomain: "todo-backend-e320f.firebaseapp.com",
+      projectId: "todo-backend-e320f",
+      storageBucket: "todo-backend-e320f.firebasestorage.app",
+      messagingSenderId: "795792782499",
+      appId: "1:795792782499:web:0b467e460e40eba3993b16",
+      databaseURL : "https://todo-backend-e320f-default-rtdb.firebaseio.com/",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    window.firebaseApp = app; // 콘솔에서 확인용
+    window.firebaseDb = db;
+    window.firebaseAddTodo = async function(text, priority) {
+      const doc = { text, completed: false, priority: priority || "medium", createdAt: serverTimestamp() };
+      const newRef = await push(ref(db, "todos"), doc);
+      return { id: newRef.key, text, completed: false, priority: priority || "medium" };
+    };
+    window.firebaseUpdateTodo = async function(id, updates) {
+      await update(ref(db, `todos/${id}`), { ...updates, updatedAt: serverTimestamp() });
+    };
+    window.firebaseDeleteTodo = async function(id) {
+      await remove(ref(db, `todos/${id}`));
+    };
+    window.firebaseSubscribeTodos = function(handler) {
+      const q = query(ref(db, "todos"), orderByChild("createdAt"));
+      return onValue(q, (snap) => {
+        const data = snap.val() || {};
+        const items = Object.entries(data).map(([id, v]) => ({
+          id,
+          text: v?.text ?? "",
+          completed: !!v?.completed,
+          priority: v?.priority || "medium",
+          createdAt: typeof v?.createdAt === "number" ? v.createdAt : 0,
+        }));
+        handler(items);
+      });
+    };
+    // 앱 측에서 이 이벤트를 듣고 Firebase 초기화를 보장하도록 함
+    window.dispatchEvent(new Event("firebase-ready"));
+  </script>
+  <script src="script.js"></script>
+  <noscript>이 앱을 사용하려면 JavaScript가 필요합니다.</noscript>
+</body>
+</html>
+
+
